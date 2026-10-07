@@ -4,31 +4,47 @@ import http.server
 import json
 import logging
 import sys
-from typing import Any, Callable, Dict, List, Tuple
+from collections.abc import Callable
+from typing import Any
 
-from errors import ConflictError, GradebookError, NotFoundError, ValidationError
 import models
+from errors import ConflictError, NotFoundError, ValidationError
 
-# Configure standard logging (replaces print)
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-DATA = "gradebook.json"
-STATE: Dict[str, Any] = {
+DATA: str = "gradebook.json"
+STATE: dict[str, Any] = {
     "students": {},
     "assessments": {},
     "marks": [],
 }
 
 
+def read_port(raw: str) -> int:
+    """Parse and validate port number; exits immediately on invalid input."""
+    try:
+        port = int(raw)
+        if not (1 <= port <= 65535):
+            raise ValueError
+        return port
+    except ValueError:
+        raise SystemExit(f"Error: port must be an integer from 1 to 65535, got: {raw!r}") from None
+
+
 def load() -> None:
-    """Load gradebook state from disk, catching only FileNotFoundError."""
+    """Load gradebook state; exits if file is corrupt, catches only FileNotFoundError."""
     global STATE
     try:
         with open(DATA, "r", encoding="utf-8") as f:
-            STATE = json.load(f)
+            content = json.load(f)
+            if not isinstance(content, dict):
+                raise SystemExit("Error: gradebook.json root must be a JSON object")
+            STATE = content
     except FileNotFoundError:
-        # Expected on first run; initialize fresh state
         STATE = {"students": {}, "assessments": {}, "marks": []}
+    except json.JSONDecodeError:
+        raise SystemExit("Error: gradebook.json exists but is not valid JSON") from None
 
 
 def save() -> None:
@@ -38,10 +54,9 @@ def save() -> None:
 
 
 class GradebookHandler(http.server.BaseHTTPRequestHandler):
-    """HTTP request handler with a centralized error boundary."""
+    """HTTP request handler with centralized error boundary."""
 
     def _send(self, code: int, body: Any) -> None:
-        """Serialize and send JSON response."""
         data = json.dumps(body).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
@@ -50,7 +65,6 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _read_body(self) -> object:
-        """Parse raw request body into a JSON object fail-fast."""
         length_header = self.headers.get("Content-Length")
         if length_header is None:
             raise ValidationError("Missing Content-Length header")
@@ -62,11 +76,10 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
         raw = self.rfile.read(length).decode("utf-8")
         try:
             return json.loads(raw)
-        except Exception:
+        except json.JSONDecodeError:
             raise ValidationError("Body is not valid JSON") from None
 
-    def _dispatch(self, action: Callable[[], Tuple[int, Any]]) -> None:
-        """Central Error Boundary: maps exceptions to status codes."""
+    def _dispatch(self, action: Callable[[], tuple[int, Any]]) -> None:
         try:
             code, body = action()
             self._send(code, body)
@@ -77,15 +90,13 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
         except ConflictError as e:
             self._send(409, {"error": str(e)})
         except Exception:
-            logging.exception("Unexpected server failure")
+            logger.exception("Unexpected server failure")
             self._send(500, {"error": "internal error"})
-
-    # --- GET Handlers ---
 
     def do_GET(self) -> None:
         self._dispatch(self._route_get)
 
-    def _route_get(self) -> Tuple[int, Any]:
+    def _route_get(self) -> tuple[int, Any]:
         path = self.path.rstrip("/")
         if path == "/students":
             return 200, list(STATE["students"].values())
@@ -100,9 +111,8 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
             return 200, self._build_report()
         raise NotFoundError("Unknown route")
 
-    def _build_report(self) -> List[Dict[str, Any]]:
-        """Calculate weighted percentage for all students."""
-        report = []
+    def _build_report(self) -> list[dict[str, Any]]:
+        report: list[dict[str, Any]] = []
         for sid, s in STATE["students"].items():
             total_earned = 0.0
             total_weight = 0.0
@@ -117,12 +127,10 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
             report.append({"student": s["name"], "id": sid, "percentage": pct})
         return report
 
-    # --- POST Handlers ---
-
     def do_POST(self) -> None:
         self._dispatch(self._route_post)
 
-    def _route_post(self) -> Tuple[int, Any]:
+    def _route_post(self) -> tuple[int, Any]:
         path = self.path.rstrip("/")
         raw_body = self._read_body()
 
@@ -130,55 +138,53 @@ class GradebookHandler(http.server.BaseHTTPRequestHandler):
             student = models.parse_student(raw_body)
             if student.id in STATE["students"]:
                 raise ConflictError(f"Student '{student.id}' already exists")
-            record = {"id": student.id, "name": student.name}
-            STATE["students"][student.id] = record
+            student_record: dict[str, Any] = {"id": student.id, "name": student.name}
+            STATE["students"][student.id] = student_record
             save()
-            return 200, record
+            return 200, student_record
 
         if path == "/assessments":
             assessment = models.parse_assessment(raw_body)
             if assessment.id in STATE["assessments"]:
                 raise ConflictError(f"Assessment '{assessment.id}' already exists")
-            record = {
+            assessment_record: dict[str, Any] = {
                 "id": assessment.id,
                 "title": assessment.title,
                 "weight": assessment.weight,
                 "total": assessment.total,
             }
-            STATE["assessments"][assessment.id] = record
+            STATE["assessments"][assessment.id] = assessment_record
             save()
-            return 200, record
+            return 200, assessment_record
 
         if path == "/marks":
             mark = models.parse_mark(raw_body)
-            # Enforce referential integrity
             if mark.student not in STATE["students"]:
                 raise NotFoundError(f"Student '{mark.student}' does not exist")
             if mark.assessment not in STATE["assessments"]:
                 raise NotFoundError(f"Assessment '{mark.assessment}' does not exist")
 
-            # Enforce invariant: score cannot exceed assessment total
             target_assessment = STATE["assessments"][mark.assessment]
             if mark.score > target_assessment["total"]:
                 raise ValidationError("score cannot exceed assessment total")
 
-            record = {
+            mark_record: dict[str, Any] = {
                 "student": mark.student,
                 "assessment": mark.assessment,
                 "score": mark.score,
             }
-            STATE["marks"].append(record)
+            STATE["marks"].append(mark_record)
             save()
-            return 200, record
+            return 200, mark_record
 
         raise NotFoundError("Unknown route")
 
 
 def main() -> None:
+    port = read_port(sys.argv[1]) if len(sys.argv) > 1 else 8000
     load()
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     server = http.server.HTTPServer(("localhost", port), GradebookHandler)
-    logging.info("Listening on http://localhost:%d", port)
+    logger.info("Listening on http://localhost:%d", port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
