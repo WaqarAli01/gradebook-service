@@ -1,10 +1,12 @@
-from typing import Any, Dict
+from typing import Any
+
 import pytest
+
 import gradebook
 
 
 @pytest.fixture
-def state() -> Dict[str, Any]:
+def state() -> dict[str, Any]:
     return {
         "students": {"S1": {"id": "S1", "name": "Ayesha"}},
         "assessments": {
@@ -16,6 +18,6 @@ def state() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def loaded(monkeypatch: pytest.MonkeyPatch, state: Dict[str, Any]) -> Dict[str, Any]:
+def loaded(monkeypatch: pytest.MonkeyPatch, state: dict[str, Any]) -> dict[str, Any]:
     monkeypatch.setattr(gradebook, "STATE", state)
     return state

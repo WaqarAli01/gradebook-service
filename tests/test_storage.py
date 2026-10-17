@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
 import pytest
+
 import gradebook
 
 
@@ -15,7 +17,7 @@ def temp_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_saved_gradebook_loads_back_unchanged(
     temp_storage: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "students": {"S1": {"id": "S1", "name": "Ayesha"}},
         "assessments": {},
         "marks": [],

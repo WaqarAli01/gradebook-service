@@ -5,8 +5,8 @@ import http.server
 import json
 import logging
 import sys
-from typing import Any, Callable, Dict
-from errors import NotFoundError, ValidationError
+from collections.abc import Callable
+from typing import Any
 
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student
@@ -19,8 +19,8 @@ STATE: dict[str, Any] = {}
 
 
 def add_mark(
-    state: Dict[str, Any],
-    mark: Dict[str, Any],
+    state: dict[str, Any],
+    mark: dict[str, Any],
     now: Callable[[], str],
     save: Callable[[], None],
 ) -> None:
@@ -47,6 +47,7 @@ def add_mark(
         }
     )
     save()
+
 def load() -> None:
     global STATE
     try:
@@ -149,7 +150,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             STATE["students"][student.id] = {
                 "id": student.id,
                 "name": student.name,
-                "joined": str(datetime.datetime.now(datetime.timezone.utc)),
+                "joined": str(datetime.datetime.now(datetime.UTC)),
             }
 
             save()
@@ -190,7 +191,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "student": mark.student,
                     "assessment": mark.assessment,
                     "score": mark.score,
-                    "at": str(datetime.datetime.now(datetime.timezone.utc)),
+                    "at": str(datetime.datetime.now(datetime.UTC)),
                 }
             )
 

@@ -1,6 +1,8 @@
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import Mock
+
 import pytest
+
 import gradebook
 from errors import NotFoundError, ValidationError
 
@@ -9,7 +11,7 @@ def stub_clock() -> str:
     return "2026-10-12 09:00:00"
 
 
-def test_valid_mark_stored_with_expected_dict_and_timestamp(state: Dict[str, Any]) -> None:
+def test_valid_mark_stored_with_expected_dict_and_timestamp(state: dict[str, Any]) -> None:
     save_mock = Mock()
     mark = {"student": "S1", "assessment": "A1", "score": 15}
 
@@ -24,7 +26,7 @@ def test_valid_mark_stored_with_expected_dict_and_timestamp(state: Dict[str, Any
     }
 
 
-def test_valid_mark_calls_save_exactly_once(state: Dict[str, Any]) -> None:
+def test_valid_mark_calls_save_exactly_once(state: dict[str, Any]) -> None:
     save_mock = Mock()
     mark = {"student": "S1", "assessment": "A1", "score": 15}
 
@@ -54,7 +56,7 @@ def test_valid_mark_calls_save_exactly_once(state: Dict[str, Any]) -> None:
     ],
 )
 def test_invalid_marks_raise_exceptions_and_do_not_modify_state_or_call_save(
-    state: Dict[str, Any], mark: Dict[str, Any], expected_exception: Any
+    state: dict[str, Any], mark: dict[str, Any], expected_exception: Any
 ) -> None:
     save_mock = Mock()
 

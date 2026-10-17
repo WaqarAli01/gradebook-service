@@ -1,8 +1,10 @@
 """Domain data models and parsers."""
 
-from dataclasses import dataclass
 import math
-from typing import Any, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any
+
 from errors import ValidationError
 
 
