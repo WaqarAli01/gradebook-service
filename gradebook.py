@@ -21,16 +21,29 @@ def add_assessment(
     assessment: dict[str, Any],
     save: Callable[[], None],
 ) -> None:
-    assessment_id = assessment["id"]
-    if assessment_id in state.get("assessments", {}):
+    # 1. Run through parser model to validate weight >= 0 and total > 0
+    parsed = parse_assessment(assessment)
+    assessment_dict = {
+        "id": parsed.id,
+        "title": parsed.title,
+        "weight": parsed.weight,
+        "total": parsed.total,
+    }
+
+    # 2. Ensure assessments dictionary key exists in state
+    if "assessments" not in state:
+        state["assessments"] = {}
+
+    assessment_id = assessment_dict["id"]
+    if assessment_id in state["assessments"]:
         raise ConflictError(f"Assessment {assessment_id} already exists")
 
     existing_weights = [
-        float(a["weight"]) for a in state.get("assessments", {}).values()
+        float(a["weight"]) for a in state["assessments"].values()
     ]
-    ensure_weight_fits(existing_weights, float(assessment["weight"]))
+    ensure_weight_fits(existing_weights, float(assessment_dict["weight"]))
 
-    state["assessments"][assessment_id] = assessment
+    state["assessments"][assessment_id] = assessment_dict
     save()
 
 def add_mark(
@@ -49,9 +62,16 @@ def add_mark(
     if assessment_id not in state.get("assessments", {}):
         raise NotFoundError(f"Assessment {assessment_id} not found")
 
-    assessment_total = state["assessments"][assessment_id]["total"]
-    if score > assessment_total:
+    # Reject negative scores or scores exceeding total
+    if float(score) < 0.0:
+        raise ValidationError(f"Score {score} cannot be negative")
+
+    assessment_total = float(state["assessments"][assessment_id]["total"])
+    if float(score) > assessment_total:
         raise ValidationError(f"Score {score} exceeds assessment total {assessment_total}")
+
+    if "marks" not in state:
+        state["marks"] = []
 
     state["marks"].append(
         {
@@ -62,7 +82,7 @@ def add_mark(
         }
     )
     save()
-
+    
 def load() -> None:
     global STATE
     try:
