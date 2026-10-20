@@ -15,3 +15,6 @@
 - Coverage tells you which lines and branches of code were executed during test runs.
 - Coverage cannot tell you whether your tests contain assertions that verify correct functionality or catch bugs.
 - Function with no test coverage in gradebook.py: `run_server` (or `main`)
+
+## Task 6 Boundary Testing
+- Failing test when `>` was changed to `>=`: `tests/test_boundaries.py::test_add_mark_score_boundaries[score-boundary-20]`
