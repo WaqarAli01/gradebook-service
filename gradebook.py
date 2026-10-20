@@ -7,16 +7,31 @@ import logging
 import sys
 from collections.abc import Callable
 from typing import Any
-
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student
+from rules import ensure_weight_fits
 
 logger = logging.getLogger(__name__)
 
 DATA = "gradebook.json"
 STATE: dict[str, Any] = {}
 
+def add_assessment(
+    state: dict[str, Any],
+    assessment: dict[str, Any],
+    save: Callable[[], None],
+) -> None:
+    assessment_id = assessment["id"]
+    if assessment_id in state.get("assessments", {}):
+        raise ConflictError(f"Assessment {assessment_id} already exists")
 
+    existing_weights = [
+        float(a["weight"]) for a in state.get("assessments", {}).values()
+    ]
+    ensure_weight_fits(existing_weights, float(assessment["weight"]))
+
+    state["assessments"][assessment_id] = assessment
+    save()
 
 def add_mark(
     state: dict[str, Any],
@@ -159,43 +174,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == "/assessments":
             assessment = parse_assessment(d)
 
-            if assessment.id in STATE["assessments"]:
-                raise ConflictError("assessment already exists")
-
-            STATE["assessments"][assessment.id] = {
+            assessment_dict = {
                 "id": assessment.id,
                 "title": assessment.title,
                 "weight": assessment.weight,
                 "total": assessment.total,
             }
 
-            save()
+            # Delegate to add_assessment so ensure_weight_fits is executed
+            add_assessment(STATE, assessment_dict, save)
+
             return 201, STATE["assessments"][assessment.id]
 
         if self.path == "/marks":
             mark = parse_mark(d)
 
-            if mark.student not in STATE["students"]:
-                raise NotFoundError("student not found")
+            mark_dict = {
+                "student": mark.student,
+                "assessment": mark.assessment,
+                "score": mark.score,
+            }
 
-            if mark.assessment not in STATE["assessments"]:
-                raise NotFoundError("assessment not found")
+            def clock_now() -> str:
+                return str(datetime.datetime.now(datetime.UTC))
 
-            assessment = STATE["assessments"][mark.assessment]
+            add_mark(STATE, mark_dict, clock_now, save)
 
-            if mark.score > float(assessment["total"]):
-                raise ValidationError("score exceeds total")
-
-            STATE["marks"].append(
-                {
-                    "student": mark.student,
-                    "assessment": mark.assessment,
-                    "score": mark.score,
-                    "at": str(datetime.datetime.now(datetime.UTC)),
-                }
-            )
-
-            save()
             return 201, {"ok": True}
 
         raise NotFoundError("unknown endpoint")
