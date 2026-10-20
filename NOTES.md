@@ -9,3 +9,9 @@
 - Cycle 2 Failure: `Failed: DID NOT RAISE <class 'errors.ValidationError'>`
 - Cycle 3 Failure: Did not fail first (passed immediately as logic was already sufficient).
 - Cycle 4 Failure: `errors.ValidationError: Total weight cannot exceed 100` (due to floating point sum `100.00000000000001`).
+
+## Task 5 Coverage Insights
+- Updated Total Coverage: 92%
+- Coverage tells you which lines and branches of code were executed during test runs.
+- Coverage cannot tell you whether your tests contain assertions that verify correct functionality or catch bugs.
+- Function with no test coverage in gradebook.py: `run_server` (or `main`)
