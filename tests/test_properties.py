@@ -1,11 +1,12 @@
-from unittest.mock import patch
 from typing import Any
-from hypothesis import given, strategies as st
-import pytest
+from unittest.mock import patch
+
+from hypothesis import given
+from hypothesis import strategies as st
+
 import gradebook
 
 
-@pytest.mark.xfail(strict=True, reason="duplicate marks are all counted")
 @given(scores=st.lists(st.integers(min_value=0, max_value=20), min_size=1, max_size=5))
 def test_student_percentage_never_exceeds_assessment_weight_limit(scores: list[int]) -> None:
     state: dict[str, Any] = {

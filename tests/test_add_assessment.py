@@ -1,6 +1,8 @@
 from typing import Any
 from unittest.mock import Mock
+
 import pytest
+
 import gradebook
 from errors import ConflictError, ValidationError
 

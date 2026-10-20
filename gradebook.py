@@ -7,6 +7,7 @@ import logging
 import sys
 from collections.abc import Callable
 from typing import Any
+
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student
 from rules import ensure_weight_fits
@@ -21,7 +22,6 @@ def add_assessment(
     assessment: dict[str, Any],
     save: Callable[[], None],
 ) -> None:
-    # 1. Run through parser model to validate weight >= 0 and total > 0
     parsed = parse_assessment(assessment)
     assessment_dict = {
         "id": parsed.id,
@@ -30,7 +30,6 @@ def add_assessment(
         "total": parsed.total,
     }
 
-    # 2. Ensure assessments dictionary key exists in state
     if "assessments" not in state:
         state["assessments"] = {}
 
@@ -39,9 +38,9 @@ def add_assessment(
         raise ConflictError(f"Assessment {assessment_id} already exists")
 
     existing_weights = [
-        float(a["weight"]) for a in state["assessments"].values()
+        float(str(a["weight"])) for a in state.get("assessments", {}).values()
     ]
-    ensure_weight_fits(existing_weights, float(assessment_dict["weight"]))
+    ensure_weight_fits(existing_weights, float(str(assessment_dict["weight"])))
 
     state["assessments"][assessment_id] = assessment_dict
     save()
@@ -62,27 +61,30 @@ def add_mark(
     if assessment_id not in state.get("assessments", {}):
         raise NotFoundError(f"Assessment {assessment_id} not found")
 
-    # Reject negative scores or scores exceeding total
-    if float(score) < 0.0:
+    if score is None or float(str(score)) < 0.0:
         raise ValidationError(f"Score {score} cannot be negative")
 
-    assessment_total = float(state["assessments"][assessment_id]["total"])
-    if float(score) > assessment_total:
+    assessment_total = float(str(state["assessments"][assessment_id]["total"]))
+    if float(str(score)) > assessment_total:
         raise ValidationError(f"Score {score} exceeds assessment total {assessment_total}")
 
     if "marks" not in state:
         state["marks"] = []
 
-    state["marks"].append(
-        {
-            "student": student_id,
-            "assessment": assessment_id,
-            "score": score,
-            "at": now(),
-        }
-    )
+    # Remove pre-existing mark for this student + assessment pair
+    state["marks"] = [
+        m for m in state["marks"]
+        if not (m["student"] == student_id and m["assessment"] == assessment_id)
+    ]
+
+    state["marks"].append({
+        "student": student_id,
+        "assessment": assessment_id,
+        "score": score,
+        "at": now(),
+    })
     save()
-    
+
 def load() -> None:
     global STATE
     try:

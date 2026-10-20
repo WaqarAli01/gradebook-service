@@ -65,3 +65,15 @@ def test_invalid_marks_raise_exceptions_and_do_not_modify_state_or_call_save(
 
     assert state["marks"] == []
     save_mock.assert_not_called()
+
+
+def test_adding_duplicate_mark_replaces_previous_mark(state: dict[str, Any]) -> None:
+    save_mock = Mock()
+    mark1 = {"student": "S1", "assessment": "A1", "score": 5}
+    mark2 = {"student": "S1", "assessment": "A1", "score": 18}
+
+    gradebook.add_mark(state, mark1, stub_clock, save_mock)
+    gradebook.add_mark(state, mark2, stub_clock, save_mock)
+
+    assert len(state["marks"]) == 1
+    assert state["marks"][0]["score"] == 18
