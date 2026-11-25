@@ -8,7 +8,6 @@ import sys
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlsplit
-import logging
 
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student

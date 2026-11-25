@@ -1,4 +1,8 @@
-import http.client, http.server, sys, threading
+import http.client
+import http.server
+import sys
+import threading
+
 import gradebook
 
 gradebook.STATE = {

@@ -3,8 +3,11 @@ import http.server
 import threading
 from collections.abc import Iterator
 from typing import Any
+
 import pytest
+
 import gradebook
+
 
 @pytest.fixture
 def port(state: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> Iterator[int]:
