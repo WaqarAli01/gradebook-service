@@ -15,6 +15,7 @@ from rules import ensure_weight_fits
 logger = logging.getLogger(__name__)
 
 DATA = "gradebook.json"
+DEFAULT_PORT = 8000
 STATE: dict[str, Any] = {}
 
 def add_assessment(
