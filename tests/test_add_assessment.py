@@ -42,3 +42,12 @@ def test_duplicate_assessment_id_raises_conflict_error_and_does_not_save(
         gradebook.add_assessment(state, assessment, save_mock)
 
     save_mock.assert_not_called()
+def test_failed_save_leaves_no_trace(state: dict[str, Any]) -> None:
+    def failing_save() -> None:
+        raise OSError("disk full")
+
+    assessment = {"id": "A3", "title": "Final", "weight": 10.0, "total": 50.0}
+    with pytest.raises(OSError, match="disk full"):
+        gradebook.add_assessment(state, assessment, failing_save)
+
+    assert "A3" not in state.get("assessments", {})

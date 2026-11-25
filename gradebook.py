@@ -8,6 +8,7 @@ import sys
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlsplit
+import logging
 
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student
@@ -45,7 +46,15 @@ def add_assessment(
     ensure_weight_fits(existing_weights, float(str(assessment_dict["weight"])))
 
     state["assessments"][assessment_id] = assessment_dict
-    save()
+    try:
+        save()
+    except OSError:
+        del state["assessments"][assessment_id]
+        logger.warning(
+            "could not save assessment %s; change rolled back",
+            assessment_id,
+        )
+        raise
 
 def add_mark(
     state: dict[str, Any],
