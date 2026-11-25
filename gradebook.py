@@ -170,8 +170,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         raise NotFoundError("unknown endpoint")
 
     def _post(self) -> tuple[int, object]:
-        n = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(n)
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
 
         try:
             d = json.loads(raw)
