@@ -7,6 +7,7 @@ import logging
 import sys
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 from errors import ConflictError, NotFoundError, ValidationError
 from models import parse_assessment, parse_mark, parse_student
@@ -140,11 +141,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(500, {"error": "internal error"})
 
     def _get(self) -> tuple[int, object]:
-        if self.path == "/students":
+        parsed = urlsplit(self.path)
+        path = parsed.path
+
+        if path == "/students":
             return 200, list(STATE["students"].values())
 
-        if self.path.startswith("/students/"):
-            sid = self.path.removeprefix("/students/")
+        if path.startswith("/students/"):
+            sid = path.removeprefix("/students/").removesuffix("/")
 
             if sid not in STATE["students"]:
                 raise NotFoundError("student not found")
@@ -153,10 +157,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             student["percentage"] = pct(sid)
             return 200, student
 
-        if self.path == "/assessments":
+        if path == "/assessments":
             return 200, list(STATE["assessments"].values())
 
-        if self.path == "/report":
+        if path == "/report":
             out = []
 
             for sid in STATE["students"]:
