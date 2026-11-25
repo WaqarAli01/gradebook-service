@@ -33,3 +33,7 @@ def test_get_student_handles_trailing_slashes_and_queries(
     state["students"]["S1"] = {"id": "S1", "name": "Ayesha", "joined": "2026-01-01"}
     status, _ = send(port, "GET", path)
     assert status == 200
+
+def test_body_that_is_not_utf8_is_a_bad_request(port: int) -> None:
+    status, _ = send(port, "POST", "/students", body=b"\x80\x81\x82")
+    assert status == 400
