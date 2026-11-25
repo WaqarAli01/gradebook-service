@@ -52,6 +52,7 @@ def add_mark(
     now: Callable[[], str],
     save: Callable[[], None],
 ) -> None:
+    # All checks come first, so a rejected mark leaves no trace.
     student_id = mark.get("student")
     assessment_id = mark.get("assessment")
     score = mark.get("score")
@@ -244,7 +245,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def main(argv: list[str]) -> None:
     load()
-    port = 8000
+    port = DEFAULT_PORT
     if len(argv) > 1:
         if not argv[1].isdigit() or not 1 <= int(argv[1]) <= 65535:
             raise SystemExit("port must be a whole number from 1 to 65535")
