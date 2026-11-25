@@ -107,10 +107,10 @@ def pct(sid: str) -> str:
     got = 0.0
     for m in STATE["marks"]:
         if m["student"] == sid:
-            a = STATE["assessments"].get(m["assessment"])
-            if a:
-                got = got + float(m["score"]) * float(a["weight"]) / float(a["total"])
-                total = total + float(a["weight"])
+            assessment = STATE["assessments"].get(m["assessment"])
+            if assessment:
+                got = got + float(m["score"]) * float(assessment["weight"]) / float(assessment["total"])
+                total = total + float(assessment["weight"])
     if total == 0:
         return "0"
     return str(round(got, 2))
